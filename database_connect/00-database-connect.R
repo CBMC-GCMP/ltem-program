@@ -17,8 +17,9 @@ library(tidyverse)
 host= "goc-rds-production.cbujotn7bqi9.us-east-1.rds.amazonaws.com"
 port = 3306
 dbname = "ecological_monitoring"
-.user = Sys.getenv("userid")
-.password = Sys.getenv("pwd")
+.user = rstudioapi::askForPassword("User")
+.password= rstudioapi::askForPassword("Database password")
+
 
 
 # This connects to the database (creates an image, does not actually download anything)
