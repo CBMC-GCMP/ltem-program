@@ -14,7 +14,7 @@ library(tidyverse)
 ## Connection details
 
 # Important: Do not modify
-
+# Requires user and password manual input
 host= "goc-rds-production.cbujotn7bqi9.us-east-1.rds.amazonaws.com"
 port = 3306
 dbname = "ecological_monitoring"
