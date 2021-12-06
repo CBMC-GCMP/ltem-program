@@ -1,6 +1,5 @@
 library(readxl)
 library(rfishbase)
-library(data.table)
 library(tidyverse)
 
 
@@ -16,17 +15,18 @@ metadata_fish <- read_xlsx ("data/nov_2021/Base_Pec_inv_monitoreo_18102021.xlsx"
 
 
 
+
 ### Apply filters for removing all species entries that contain "sp" or "spp" 
 ### Including Species with just genus or families
 ##Filtering just Fish data
 
-clean_df <-  data_fish %>% 
+clean_df <-  ltem_fish%>% 
   filter (IDLabel== "PEC") %>%
   filter(!str_detect(Species, " sp| spp" ))
 
 
 clean_md <-  metadata_fish %>% 
-  rename(IDSpecies="IDSpecies (Species)") %>%
+  rename(IDSpecies = "IDSpecies (Species)") %>%
   select(Label, IDSpecies, Species ) %>% 
   filter (Label== "PEC") %>%
   filter(str_detect(Species, " " )) %>% 
@@ -155,7 +155,7 @@ merge_df <- merge(clean_df, clean_md[, c("IDSpecies", "Validated")],
 
 
 #If no issues are displayed, proceed:
-data_fish <- merge_df %>% 
+names_fish <- merge_df %>% 
   filter(Species != "Fistularia corneta") %>% 
   mutate(Species= Validated) %>% 
   select(-c(Validated, Status))
@@ -164,13 +164,12 @@ rm(merge_df)
 
 
 
-
 # Replacing species in the monitoring database ----------------------------
 
 ## Finally, we use a match to correct scientific names with the valid ones
 ## from our PLoS in the complete monitoring database
 
-ltem_fish$Species[match(data_fish$ID, ltem_fish$ID)] <- data_fish$Species
+ltem_fish$Species[match(names_fish$ID, ltem_fish$ID)] <- names_fish$Species
 
 
 ltem <- ltem_fish %>% 
@@ -191,7 +190,7 @@ ltem <- ltem_fish %>%
 
 rm(clean_df,
    clean_md,
-   data_fish,
+   names_fish,
    ltem_fish
    )
 
