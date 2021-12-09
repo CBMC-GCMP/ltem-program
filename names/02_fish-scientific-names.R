@@ -7,12 +7,12 @@ library(tidyverse)
 # Load data ---------------------------------------------------------------
 
 #Monitoring Data
-ltem_fish<- read_xlsx ("data/nov_2021/Base_Pec_inv_monitoreo_18102021.xlsx", sheet= 1) %>% 
+ltem_fish<- read_xlsx ("data/drive/ltem_database_07122021.xlsx", 
+                       sheet= 1) %>% 
   rowid_to_column( "ID")
 
 #Peripheral list of species (PLoS)
-metadata_fish <- read_xlsx ("data/nov_2021/Base_Pec_inv_monitoreo_18102021.xlsx", sheet= 3)
-
+metadata_fish <- read.csv ("data/server/ltem_monitoring_species.csv")
 
 
 
@@ -26,7 +26,6 @@ clean_df <-  ltem_fish%>%
 
 
 clean_md <-  metadata_fish %>% 
-  rename(IDSpecies = "IDSpecies (Species)") %>%
   select(Label, IDSpecies, Species ) %>% 
   filter (Label== "PEC") %>%
   filter(str_detect(Species, " " )) %>% 

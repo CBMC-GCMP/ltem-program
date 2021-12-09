@@ -1,8 +1,6 @@
-library(worms)
 library(tidyverse)
 library(readxl)
-library(plyr)
-library(httr)
+
 
 
 # Load data ---------------------------------------------------------------
@@ -11,8 +9,8 @@ library(httr)
 source("names/02_fish-scientific-names.R")
 
 #Peripheral list of species (PLoS)
-inv_metadata <- read_xlsx ("data/nov_2021/Base_Pec_inv_monitoreo_18102021.xlsx", sheet= 3) %>% 
-rename(IDSpecies = "IDSpecies (Species)") 
+inv_metadata <- read.csv ("data/server/ltem_monitoring_species.csv")
+
 
 
 
@@ -73,8 +71,11 @@ resolved_names <- resolved_names_df %>%
     !is.na(worms_sci_name) ~ worms_sci_name,
     TRUE ~ user_supplied_name
   )) %>% 
-  select(user_supplied_name, resolved_scientific_name, everything()) %>% 
-  rename(Species= user_supplied_name)
+  select(user_supplied_name, 
+         resolved_scientific_name, 
+         everything())%>% 
+  rename(Species= user_supplied_name) %>% 
+  select(Species, resolved_scientific_name)
 
 rm(sources,
    resolved_names_df)
@@ -134,8 +135,11 @@ mutate(Species = str_replace_all(Species, "Hyotissa solida",
                                    "Holothuria leucospilota",
                                    "Holothuria (Mertensiothuria) leucospilota")) %>% 
   mutate(Species = str_replace_all(Species,
-                                   "Thais planospira",
-                                   "Thais (Tribulus) planospira"))
+                                   "Mycale ramulosa",
+                                   "Mycale (Zygomycale) ramulosa")) %>% 
+  mutate(Species = str_replace_all(Species,
+                                 "Thais planospira",
+                                 "Thais (Tribulus) planospira"))
 
 
 # The replacements above may vary, always check for new invalid species
@@ -148,7 +152,9 @@ wormsID <- taxize:: get_wormsid(clean_md$Species)
 
 
 # Validate scientific names with WoRMS IDs --------------------------------
-
+library(plyr)
+library(httr)
+library(worms)
 
 ## For scientific names validation, we need the AphiaIDs from WoRMS servers
 ## This IDs will help us check if a scientific neame is currently unaccepted,
@@ -156,9 +162,10 @@ wormsID <- taxize:: get_wormsid(clean_md$Species)
 
 # First Step: We change the format of the WoRMS IDs generated in previous section
 wormsID <- data.frame(wormsID)
+  
 
 # Second Step
-wormsID= as.numeric(wormsID$ids)
+wormsID = as.numeric(wormsID$ids)
 
 # Third Step: Downloading WoRMS info
 
@@ -189,7 +196,8 @@ merge_md <- merge(clean_md, valid_names[, c("IDSpecies",
   
   mutate(Results = ifelse(Species == valid_name,
                          "Correct",
-                         "Wrong"))
+                         "Wrong")) %>% 
+  select(IDSpecies, Species, valid_name, valid_AphiaID, Results)
 
 #Manual check: Wrong Spellings
 #view(merge_md)
@@ -199,7 +207,7 @@ merge_md <- merge(clean_md, valid_names[, c("IDSpecies",
 ##We can now update our clean PLoS with the correct scientific names:
 
 clean_md <- merge_md %>% 
-  select(-c(Phylum:"Functional groups"), -Species, -Results)
+  select(-Species, -Results)
 
 
 rm(merge_md,
@@ -223,7 +231,8 @@ merge_df <- merge(clean_df, clean_md[, c("IDSpecies", "valid_name")],
 
 
 #If no issues are displayed, proceed:
-names_inv <- merge_df %>% 
+names_inv <- merge_df %>%
+  filter(Species != "Actinostella californica") %>% 
   mutate(Species= valid_name) %>% 
   select(-c(valid_name, Status))
 
@@ -241,11 +250,10 @@ ltem$Species[match(names_inv$ID, ltem$ID)] <- names_inv$Species
 
 rm(clean_df,
    clean_md,
-   merge_df,
    names_inv)
 
 
 
 
-
+writexl:: write_xlsx(ltem, "data/ltem_2021_valid_names.xlsx")
 
