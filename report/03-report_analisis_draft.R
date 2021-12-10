@@ -9,6 +9,9 @@ library(ggspatial)
 library(patchwork)
 library(see)
 library(ggpval)
+library(scales)
+
+
 
 # Loading logo CBMC and GCMP
 
@@ -27,7 +30,45 @@ spdf_mx <- st_transform(st_as_sf(ne_countries(country = 'mexico',
 
 # Loading database output from 00-data_updater.R script
 
-db <- readRDS("report/outputs/ltem_output_base.RDS") 
+db <- readRDS("report/outputs/ltem_output_base.RDS") %>% 
+  filter(Reef != "DEDO_NEPTUNO") %>% 
+  mutate(Season = ifelse(Month < 10, "August", "November"))
+
+
+
+# Merging with historical data --------------------------------------------
+
+
+
+histor <- readRDS("report/outputs/cls_lor_cp_extract.RDS")
+
+histor %>% 
+  filter(Region == "Los Cabos") %>% 
+  select(Year, Label, Species) %>% 
+  unique() %>% 
+  group_by(Year, Label) %>% 
+  count() %>% 
+  filter(Year > 2000) %>% 
+  group_by(Label) %>% 
+  summarise(rich = mean(n), rich_sd = sd(n, na.rm = T))
+
+histor <- histor %>% 
+  select(Label, Year, Month, Region, Reef, MPA, TrophicLevelF, TrophicGroup, Species, Latitude, Longitude, Transect, Size, Quantity, Biomass)
+
+db_2 <- db %>% 
+  select(Label, Year, Month, Region, Reef, MPA, TrophicLevelF, TrophicGroup, Species, Latitude, Longitude, Transect, Size, Quantity, Biomass)
+
+db_merged <- rbind(histor, db_2) %>% 
+  mutate(Biomass = as.numeric(Biomass)) %>% 
+  filter(Month != 11) # Here I eliminate the double Los Cabos expedition
+
+rm(histor, db_2)
+
+
+
+
+# Map of rocky reef study area --------------------------------------------
+
 
 # Converting db to spatial object
 
@@ -55,10 +96,7 @@ id_reefs <- db %>%
 
 db_sf <- merge(db_sf, id_reefs, by = "Reef")
 
-
-
-
-# Map of the study area ---------------------------------------------------
+# actual Mapping
 
 reef_map <- ggplot(spdf_mx) +
   geom_sf(fill = "gray90", 
@@ -109,55 +147,58 @@ reef_map + inset_element(gen_map, 0.8, 0.8, 1, 1, align_to = 'full')
 ggsave("report/figs/figure_1_map.png", dpi = 600)
 
 
+
+
+
+
+
+
+
+
+
 # Fish biomass ------------------------------------------------------------
 
 ## Biomass graph violinplots
 
 p1 <- db_sf %>% 
   mutate(MPA = factor(MPA, levels = c("", "Cabo San Lucas"), labels = c("Open Area", "MPA"))) %>% 
-  filter(ID_map != "2") %>% 
   filter(Label == "PEC", Region == "Los Cabos") %>% 
-  group_by(ID_map, MPA, Reef, Transect, Species) %>% 
+  group_by(Season, ID_map, MPA, Reef, Transect, Species) %>% 
   summarise(Biomass = sum(Biomass)) %>% 
-  group_by(ID_map, MPA, Reef, Transect) %>% 
+  group_by(Season, ID_map, MPA, Reef, Transect) %>% 
   summarise(Biomass = mean(Biomass)) %>% 
   ggplot(aes(x = factor(ID_map), y = (Biomass))) +
   geom_violin(trim = F, aes(fill = MPA), alpha = .3) +
-  geom_jitter(width = 0.09, pch = 21, aes(fill = MPA)) +
-  scale_color_material_d() +
-  scale_fill_material_d() +
-  ylim(0, 1) +
+  geom_jitter(width = 0.09, pch = 21, aes(fill = MPA), alpha = .3) +
+  scale_color_manual(values = c("firebrick", "darkgreen")) +
+  scale_fill_manual(values = c("firebrick", "darkgreen")) +
+  ylim(0, 1.5) +
   labs(x = "", y = "Biomass (Ton/ha)", fill = "Protection level") +
   theme_modern() +
   theme(legend.position = "top") +
   guides(colour = "none")
 
+
 p2 <- db_sf %>% 
   mutate(MPA = factor(MPA, levels = c("", "Cabo San Lucas"), labels = c("Open Area", "MPA"))) %>% 
-  filter(ID_map != "2") %>% 
   filter(Label == "PEC", Region == "Los Cabos") %>% 
-  group_by(ID_map, MPA, Reef, Transect, Species) %>% 
+  group_by(Season, ID_map, MPA, Reef, Transect, Species) %>% 
   summarise(Biomass = sum(Biomass)) %>% 
-  group_by(ID_map, MPA, Reef, Transect) %>% 
+  group_by(Season, ID_map, MPA, Reef, Transect) %>% 
   summarise(Biomass = mean(Biomass)) %>% 
   ggplot(aes(x = factor(MPA), y = (Biomass))) +
   geom_violin(trim = F, aes(fill = MPA), alpha = .3) +
   geom_boxplot(width  = 0.1) +
-  geom_jitter(width = 0.09, pch = 21, aes(fill = MPA)) +
-  scale_color_material_d() +
-  scale_fill_material_d() +
-  ylim(0, 1) +
+  geom_jitter(width = 0.09, pch = 21, aes(fill = MPA), alpha = .3) +
+  scale_color_manual(values = c("firebrick", "darkgreen")) +
+  scale_fill_manual(values = c("firebrick", "darkgreen")) +
+  ylim(0, 1.5) +
   labs(x = "", y = "Biomass (Ton/ha)", fill = "Protection level") +
   theme_modern() +
   theme(legend.position = "top") +
   guides(colour = "none")
 
 
-
-p1 + add_pval(p2, pairs = list(c(1, 2))) + 
-  plot_layout(guides = "collect") & theme(legend.position = "bottom")
-
-ggsave("report/figs/figure_fish_biomass_reefs.png", dpi = 600)
 
 
 
@@ -170,20 +211,19 @@ p3 <- db %>%
   mutate(Region = factor(Region)) %>% 
   #mutate(MPA = factor(MPA, levels = c("", "Cabo San Lucas"), labels = c("Open Area", "MPA"))) %>% 
   #filter(ID_map != "2") %>% 
-  filter(Label == "PEC") %>% 
-  group_by( Region, Reef, Transect, Species) %>% 
+  filter(Label == "PEC", Region == "Los Cabos") %>% 
+  group_by(Season, Region, Reef, Transect, Species) %>% 
   summarise(Biomass = sum(Biomass)) %>% 
-  group_by( Region, Reef, Transect) %>% 
+  group_by(Season, Region, Reef, Transect) %>% 
   summarise(Biomass = mean(Biomass, na.rm = T)) %>% 
-  mutate(Biomasslog = log1p(Biomass)) %>% 
-  ggplot(aes(x = factor(Region), y = (Biomasslog))) +
-  geom_violin(trim = F, aes(fill = Region), alpha = .3) +
-  geom_boxplot(width  = 0.1) +
-  geom_jitter(width = 0.09, pch = 21, aes(fill = Region)) +
+  ggplot(aes(x = factor(Season), y = (Biomass))) +
+  geom_violin(trim = F, aes(fill = Season), alpha = .3) +
+  geom_boxplot(width  = 0.1, outlier.shape = NA) +
+  geom_jitter(width = 0.09, pch = 21, aes(fill = Season)) +
   scale_color_material_d() +
   scale_fill_material_d() +
-  ylim(0, 1.0) +
-  labs(x = "", y = "Biomass (Ton/ha)", fill = "Region") +
+  ylim(0, 1.5) +
+  labs(x = "", y = "Biomass (Ton/ha)", fill = "Season") +
   theme_modern() +
   theme(legend.position = "top") +
   guides(colour = "none")
@@ -191,119 +231,105 @@ p3 <- db %>%
 
 p3
 
-add_pval(p3, pairs = list(c(1, 2), c(1,3), c(2,3)))
-
-## historical trend
 
 
-db_sf %>% 
-  as.data.frame() %>% 
-  filter(Label == "PEC", Region == "Los Cabos") %>% 
-  group_by(ID_map, MPA, Reef, Transect, Species) %>% 
-  summarise(Biomass = sum(Biomass)) %>% 
-  arrange(-Biomass)
+
+add_pval(p3, pairs = list(c(1, 2))) + add_pval(p2, pairs = list(c(1, 2))) + plot_annotation(tag_levels = "A") +
+  plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+ggsave("report/figs/figure_fish_biomass_reefs.png", dpi = 600, height = 6, width = 8)
+
+
+# Historical trends -------------------------------------------------------
+
 
 
 histor <- readRDS("report/outputs/cls_lor_cp_extract.RDS")
 
+histor %>% 
+  filter(Region == "Los Cabos") %>% 
+  select(Year, Label, Species) %>% 
+  unique() %>% 
+  group_by(Year, Label) %>% 
+  count() %>% 
+  filter(Year > 2000) %>% 
+  group_by(Label) %>% 
+  summarise(rich= mean(n), rich_sd = sd(n, na.rm = T))
+  
+
 
 histor <- histor %>% 
-  select(Label, Year, Region, Reef, MPA, TrophicLevelF, Species, Latitude, Longitude, Transect, Size, Quantity, Biomass)
+  select(Label, Year, Month, Region, Reef, MPA, TrophicLevelF, TrophicGroup, Species, Latitude, Longitude, Transect, Size, Quantity, Biomass)
 
 
 db_2 <- db %>% 
-  select(Label, Year, Region, Reef, MPA, TrophicLevelF, Species, Latitude, Longitude, Transect, Size, Quantity, Biomass)
+  select(Label, Year, Month, Region, Reef, MPA, TrophicLevelF, TrophicGroup, Species, Latitude, Longitude, Transect, Size, Quantity, Biomass)
 
 db_merged <- rbind(histor, db_2) %>% 
-  mutate(Biomass = as.numeric(Biomass))
+  mutate(Biomass = as.numeric(Biomass)) %>% 
+  filter(Month != 11) 
+  
 
 
 
 
-db_merged %>%
-  mutate(MPA = factor(MPA, levels = c("", "Cabo San Lucas"), labels = c("Open Area", "MPA"))) %>% 
-  filter(Label == "PEC", Region == "Los Cabos") %>% 
-  filter(Year > 2000) %>% 
-  group_by(Year, Reef, MPA, TrophicLevelF, Species, Transect) %>% 
+# historical region comparison -------------------------------------------------------
+
+
+p4 <- db_merged %>% 
+  mutate(Region = factor(Region, 
+                  levels = c("Loreto", "Cabo Pulmo", "Los Cabos"))) %>% 
+  #mutate(MPA = factor(MPA, levels = c("", "Cabo San Lucas"), labels = c("Open Area", "MPA"))) %>% 
+  #filter(ID_map != "2") %>% 
+  filter(Label == "PEC") %>% 
+  group_by( Region, Reef, Transect, Species) %>% 
   summarise(Biomass = sum(Biomass)) %>% 
-  group_by(Year, Reef, MPA, Transect) %>% 
-  summarise(Biomass = mean(Biomass)) %>% 
-  ggplot(aes(x = Year, y = Biomass)) +
-  geom_point() +
-  geom_smooth(method = "gam") 
+  group_by( Region, Reef, Transect) %>% 
+  summarise(Biomass = mean(Biomass, na.rm = T)) %>% 
+  ggplot(aes(x = factor(Region), y = (Biomass))) +
+  geom_violin(trim = F, aes(fill = Region), alpha = .3) +
+  geom_jitter(width = 0.09, pch = 21, aes(fill = Region), alpha = .3) +
+  geom_boxplot(width  = 0.1, outlier.shape = NA, alpha = .3) +
+  scale_color_material_d() +
+  scale_fill_material_d() +
+  ylim(0, 3.5) +
+  labs(x = "", y = "Biomass (Ton/ha)", fill = "Region") +
+  theme_bw() +
+  theme(legend.position = "") +
+  guides(colour = "none") 
 
 
+p4
 
-mtx <- db_merged %>% 
-  filter(Label == "PEC", Region == "Los Cabos") %>% 
-  filter(Year > 2000) %>% 
-  group_by(Year, Reef, MPA, TrophicLevelF, Species, Transect) %>% 
-  summarise(Biomass = sum(Biomass)) %>% 
-  group_by(Year, Reef, Species) %>% 
-  summarise(Biomass = mean(Biomass)) %>% 
-  pivot_wider(names_from = "Species", values_from = "Biomass") %>% 
-  replace(is.na(.), 0)
-
-
-
-mtx_last <- mtx %>% 
-  filter(Year %in% c(2009, 2021))
-
-
-library(vegan)
-
-
-spe <- sqrt(sqrt(mtx_last[3:ncol(mtx_last)]))
-
-
-adon_res <- vegan::adonis2(spe~mtx_last$Year, permutations = 9999)
-
-summary(adon_res)
-
-simp_res <- vegan::simper(spe,mtx_last$Year, permutations = 9999)
-
-
-simp_sum <- summary(simp_res)
-
-plot(betadisper(vegdist(spe, method = "bray"), mtx_last$Year))
-
-###### Junk
-
-p1 <- db %>% 
-  as.data.frame() %>% 
-  filter(Label == "PEC") %>%  
-  group_by(Region, Reef, MPA, Latitude, Longitude, Depth, Transect, TrophicGroup) %>% 
-  summarise(tot_biomass = sum(Biomass)) %>% 
-  group_by(Region, TrophicGroup) %>% 
-  summarise(tot_biomass = mean(tot_biomass)) %>% 
-  group_by(Region) %>% 
-  mutate(rel_biomass = (tot_biomass/sum(tot_biomass))*100) %>% 
-  ggplot(aes(x = Region, y = tot_biomass, fill = TrophicGroup)) +
-  geom_col(col = "black") +
-  labs(y="Biomass (ton/ha)", x= "", fill = "") +
-  theme_bw()
+add_pval(p4, pairs = list(c(1, 2), c(1,3), c(2,3)))
 
 
 p2 <- db %>% 
   as.data.frame() %>% 
   filter(Label == "PEC") %>%  
-  group_by(Region, Reef, MPA, Latitude, Longitude, Depth, Transect, TrophicGroup) %>% 
+  group_by(Year, Region, Reef, MPA, Transect, TrophicGroup) %>% 
   summarise(tot_biomass = sum(Biomass)) %>% 
   group_by(Region, TrophicGroup) %>% 
   summarise(tot_biomass = mean(tot_biomass)) %>% 
   group_by(Region) %>% 
-  mutate(rel_biomass = (tot_biomass/sum(tot_biomass))*100) %>% 
+  mutate(rel_biomass = (tot_biomass/sum(tot_biomass))*100) %>%  
   ggplot(aes(x = Region, y = rel_biomass, fill = TrophicGroup)) +
   geom_col(col = "black") +
+  scale_fill_brewer(palette = "Set1") +
   labs(y="Relative biomass (%)", x= "", fill = "") +
   theme_bw()
 
-  
 
-p1+p2 +
-  plot_layout(guides = "collect")
 
-ggsave("report/figs/trophic_bars.png", dpi = 600)
+(p4 + p2 ) +
+  plot_annotation(tag_levels = "A")
+
+ggsave("report/figs/trophic_bars.png", dpi = 600, width = 7, height = 5)
+
+
+
+
+###### Junk
 
 
 pec <- db_sf %>% 
