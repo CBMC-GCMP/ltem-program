@@ -3,7 +3,7 @@ library(tidyverse)
 
 source("database_connect/00-dbconnect-source.R")
 
-db <- read_sheet("https://docs.google.com/spreadsheets/d/1dCtyzwyyjlSJpA9PcGg4v3dSlOz4a6-Gi2KKY4FBWug/edit#gid=2040316618")
+db <- read_sheet("https://docs.google.com/spreadsheets/d/1vVHFQEhvtvmhh5u6GghbUBXvYYR-q-Jc7gnQTF7Zias/edit#gid=2040316618")
 
 
 dbListTables(ltem_db) #Generates a list of tables
@@ -16,7 +16,7 @@ glimpse(db)
 
 db <- merge(db, spp, by = c("IDSpecies", "Species", "Label"))
 
-db <- merge(db, reefs, by = c("Region", "IDReef", "Reef", "Habitat"))
+db <- merge(db, reefs, by = c("Region", "IDReef", "Reef"))
 
 db <- db %>% 
   mutate(A_ord = as.numeric(A_ord), 
@@ -51,7 +51,8 @@ histor <- tbl(ltem_db,
   collect()
 
 
-histor <- merge(histor, reefs, by = c("Island" , "Latitude", "Longitude" , "Protection_status", "Region", "IDReef", "Reef", "Habitat"))
+histor <- merge(histor, reefs, by = c("Island" , "Latitude", "Longitude" , "Protection_status", "Region", "IDReef", "Reef"))
 
 ## Saving main regions extract
 saveRDS(histor, "report/outputs/cls_lor_cp_extract.RDS")
+
