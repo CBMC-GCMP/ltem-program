@@ -90,7 +90,7 @@ ltem_reefs <-  collect(reefs)
 
 ## Third (Optional)
 
-# write.csv(ltem_reefs, "Data/ltem_monitoring_reefs.csv")
+ write.csv(ltem_reefs, "Data/server/ltem_monitoring_reefs.csv")
 
 
 
@@ -102,7 +102,9 @@ species <- tbl(ltem_db, "ltem_monitoring_species")
 
 ltem_species <- collect(species)
 
-# write.csv(ltem_species, "Data/ltem_monitoring_reefs.csv")
+write.csv(ltem_species, "Data/ltem_monitoring_species.csv")
+
+
 
 
 
