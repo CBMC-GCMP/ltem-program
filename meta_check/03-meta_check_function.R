@@ -25,7 +25,7 @@ library(tidyverse)
 # writexl::write_xlsx(refs_meta, "data/auxiliar/refs_meta.xlsx")
 
 
-refs_meta <- readxl:: read_xlsx("data/auxiliar/refs_meta.xlsx")
+refs_meta <- readxl:: read_xlsx("data/auxiliar/updated_catalogo_spp.xlsx")
   
 
 
