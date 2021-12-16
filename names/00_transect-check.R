@@ -6,7 +6,6 @@ db <- read_sheet("https://docs.google.com/spreadsheets/d/1vVHFQEhvtvmhh5u6GghbUB
 
 transects <- db %>% 
   group_by(Region) %>% 
-  # filter(Region == "Los Cabos") %>% 
   select(Label, Year, Month, Day, IDReef, Reef,  Depth, Transect, observador) %>% 
   arrange(Year, Month, Day, IDReef, Reef, Depth,  Transect) %>% 
   unique()
@@ -23,7 +22,7 @@ cp_inv <- transects %>%
 
 
 library(plyr)
-cp_merge <- merge(cp_inv, cp_fish, by=c("Region", "Year", "Month", "Day", "IDReef" ,"Reef", "Habitat", "Depth", "Transect"), all=T )
+cp_merge <- merge(cp_inv, cp_fish, by=c("Region", "Year", "Month", "Day", "IDReef" ,"Reef", "Depth", "Transect"), all=T )
 
 writexl::write_xlsx(cp_merge, "data/auxiliar/cabo-pulmo_transects.xlsx")
 
