@@ -42,6 +42,10 @@ scores <- ltem %>%
     Quantity_max = round(m_quantity + (z * se_quantity), 0) 
   )
 
+
+unique <- scores %>% 
+  filter(n==1)
+  
 ## Clean our results
 refs_meta <- scores %>%
   filter(n > 1) %>% #Elimate all species with only 1 observation
