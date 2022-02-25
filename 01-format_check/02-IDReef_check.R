@@ -11,8 +11,12 @@ source("01-format_check/01-size_check.R")
 reefs <-  read.csv("data/lists/ltem_monitoring_reefs.csv")
 
 
-## Merge and replace wrong Reefs
+## Merge and replace
+
+# Replace wrong IDs
 ltem <- reefsid(ltem,reefs) 
+# Correct wrong Names
+ltem <- reefsname(ltem,reefs)
 
 ## Visualize changed reefs
 changes <- flags(ltem)
@@ -22,7 +26,7 @@ changes <- flags(ltem)
 # Format LTEM database ----------------------------------------------------
 
 ltem <- ltem %>% 
-  select(-c(Before,correct_reef))
+  select(-c(correct_id, IDBefore, ReefBefore,correct_reef))
 
 rm(changes,
    reefs)

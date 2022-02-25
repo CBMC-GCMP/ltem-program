@@ -36,14 +36,14 @@ flags <- function(LTEM_corrected){
   Before <- c("IDBefore", "ReefBefore")
   flags <- LTEM_corrected %>%
     filter(str_detect(Status, "Modified_" )) %>% 
-    select(Label, Year, Month, Day, Region, Depth, Transect, Observer, any_of(IDs), any_of(Before), any_of(correct), Status) 
+    select(Label, Year, Month, Day, Region, Depth, Transect, any_of(IDs), any_of(Before), any_of(correct), Status) 
 }
 
 
 unique_trnsct <- function(LTEM){
   transects <- LTEM %>% 
-  group_by(Region) %>% 
-  select(Label, Year, Month, Day, IDReef, Reef, Depth, Transect, Observer) %>% 
+  group_by(Year,Region) %>% 
+  select(Label, Year, Month, Day, IDReef, Reef, Depth, Transect, Habitat) %>% 
   arrange(Year, Month,Day, IDReef, Reef, Depth,  Transect) %>% 
   unique()
 
@@ -60,6 +60,7 @@ compare_trnsct <- function(INV, FISH) {
       "Day",
       "IDReef" ,
       "Reef",
+      "Habitat",
       "Depth",
       "Transect"
     ),
