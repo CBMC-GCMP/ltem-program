@@ -12,7 +12,7 @@ source("00-functions/01-format_check.R")
 # ltem <- read_sheet("https://docs.google.com/spreadsheets/d/1vVHFQEhvtvmhh5u6GghbUBXvYYR-q-Jc7gnQTF7Zias/edit#gid=2040316618")
 
 ## Or, you can load an excel file (CSV, RDS, etc.)
- ltem <- read_xlsx("data/drive/Templates.xlsx", sheet=2)
+ ltem <- read_xlsx("data/auxiliar/summit/Templates.xlsx", sheet=2)
 
 ## Load peripherical list of Sizes
 sizes <-  read.csv("data/lists/ltem_size_list.csv")
