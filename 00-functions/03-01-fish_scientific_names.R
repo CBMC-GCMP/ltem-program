@@ -1,38 +1,27 @@
-library(readxl)
-library(rfishbase)
-library(tidyverse)
 
-
-
-# Load data ---------------------------------------------------------------
-
-#Monitoring Data
-ltem_fish<- read_xlsx ("data/drive/ltem_database_07122021.xlsx", 
-                       sheet= 1) %>% 
-  rowid_to_column( "ID")
-
-#Peripheral list of species (PLoS)
-metadata_fish <- read.csv ("data/lists/ltem_monitoring_species.csv")
-
-
-
+source("00-functions/00-flags.R")
 ### Apply filters for removing all species entries that contain "sp" or "spp" 
 ### Including Species with just genus or families
 ##Filtering just Fish data
 
-clean_fish <- function(ltem_fish){
-clean_df <-  ltem_fish%>% 
-  filter (IDLabel== "PEC") %>%
-  filter(!str_detect(Species, " sp| spp" ))
-}
 
-clean_metadata <- function(metadata_fish){
-clean_md <-  metadata_fish %>% 
+clean_spp <- function(species_list, Label){
+  if(Label=="fish"){
+  clean_md <-  species_list %>% 
   select(Label, IDSpecies, Species ) %>% 
   filter (Label== "PEC") %>%
   filter(str_detect(Species, " " )) %>% 
-  filter(!str_detect(Species, " sp| spp" ))
-
+  filter(!str_detect(Species, " sp | spp" ))
+  } else if(label=="inv"){
+    clean_md<-  inv_metadata %>% 
+      filter (Label== "INV") %>% 
+      filter(str_detect(Species, " " )) %>%
+      filter(!str_detect(Species, " sp| spp" )) %>% 
+      filter(!str_detect(Species, " cf| cf."))    
+  }else {
+      stop("Please specify 'fish' or 'inv'")
+    }
+  
 }
 
 
@@ -50,11 +39,11 @@ clean_md <-  metadata_fish %>%
 ## Part I: 
 #Retrieve best species matches from WoRMS and Fishbase
 
-names <- function(resolved_names){
+resolve_names <- function(clean_spp){
   sources <- c(worms = 9, fishbase = 155)
 resolved_names <- sources %>% 
   map(~ taxize::gnr_resolve(data_source_ids = .x, 
-                            sci = clean_md$Species,
+                            sci = clean_spp$Species,
                             best_match_only = T, 
                             fields = c("all"), 
                             canonical = T ))
@@ -96,84 +85,134 @@ resolved_names <- resolved_names_df %>%
 
 ## We merge our resolved_names with our clean PLoS (clean_md)
 
-merge_clean_resolved <- function(clean_md, resolved_names){
-merge_md <- merge(clean_md, resolved_names[, c("Species", "resolved_scientific_name")], 
-                  by= "Species", all.x = TRUE)%>% 
-  mutate(Status= ifelse( Species== resolved_scientific_name, "Correct", "Modified_sp"),
-         Species= ifelse( Species== resolved_scientific_name,
-                          Species, 
-                          resolved_scientific_name)) %>% 
-  select(Label, IDSpecies, Species)
+clean_validation <- function(clean_md, resolved_names, species_list) {
+  merge_md <-
+    merge(clean_md, resolved_names[, c("Species", "resolved_scientific_name")],
+          by = "Species", all.x = TRUE) %>%
+    mutate(
+      SpeciesBefore = Species,
+      Status = ifelse(
+        Species == resolved_scientific_name,
+        "correct_sp",
+        "Modified_sp"
+      ),
+      Species = ifelse(
+        Species == resolved_scientific_name,
+        Species,
+        resolved_scientific_name
+      )
+    )
+  
 
+  
+  valid_names <- merge_md %>%
+    mutate(
+      New =  rfishbase::validate_names(Species),
+      correct_sp = ifelse(Species == New, Species, New),
+      Status = ifelse(Species == correct_sp, Status, "Modified_sp")
+    ) %>%
+    select(-New)
+  
+  dir.create("data/flag_reports", showWarnings = F)
+  
+  flags <- valid_names %>%
+    filter(str_detect(Status, "Modified_")) %>% 
+  select(IDSpecies, Species, SpeciesBefore, correct_sp, Status) 
+  writexl::write_xlsx(flags, "data/flag_reports/fish_validated_sci-names.xlsx")
+  
+  valid_names <- valid_names %>%
+    select(IDSpecies, correct_sp) 
+  
+  species_list <- merge(species_list, valid_names, by="IDSpecies", all=T) %>% 
+    mutate(correct_sp= ifelse(is.na(correct_sp),Species, correct_sp ),
+           Species= ifelse(Species==correct_sp, Species, correct_sp)) %>% 
+    select(-c(X,correct_sp))
+  dir.create("data/lists/updates", showWarnings = F)
+  write.csv(species_list, "data/lists/updates")
 }
 
-#Manual check: Wrong Spellings
-#view(merge_md)
 
-##If there are no conflicts in replacing resolved scientific names, continue:
-
-##We can now update our clean PLoS with the correct scientific names:
-
-
-
-# Second Checkpoint: Valid names ------------------------------------------
-
-## To identify obsolete species names, we can validate them with:
-
-
-validate_names <- function(clean_md){
-valid_names<- clean_md %>% 
-  mutate(New=  rfishbase::validate_names(Species),
-         Validated = ifelse(Species== New, Species, New),
-         Status= ifelse(Species== Validated, "Correct", "Modified_sp"))
-
-
-#Manual check: Are the updated names correct?
-#view(valid_names)
-
-
-#If there are no issues with the validated names, once again
-# we update our PLoS: 
-
-clean_md <-  valid_names %>% 
-  select(-c(New, Species, Results))
-
+speciesid <- function(LTEM, clean_sp_list, Label){
+  LTEM <- LTEM %>% 
+    tibble::rowid_to_column("ID")
+  
+  if(Label=="fish"){
+    LTEM <- LTEM %>% 
+      filter(Label=="PEC")
+    
+    clean_sp_list <- clean_sp_list %>% 
+      filter(Label=="PEC")
+    
+  merge_df <- merge(LTEM, clean_sp_list[, c("Label","IDSpecies", "Species")], 
+                    by= c("Label", "Species"), all.x = TRUE) %>% 
+    rename(correct_id= IDSpecies.y,
+           IDSpecies= IDSpecies.x)%>%
+    mutate(IDBefore= IDSpecies,
+           Status= ifelse(IDSpecies==correct_id,"Correct", "Modified_IDSp"),
+           IDSpecies= ifelse(IDSpecies==correct_id, IDSpecies, correct_id),
+           IDSpecies= ifelse(is.na(correct_id), IDBefore, IDSpecies))
+  
+  } else if(Label=="inv"){
+    
+    LTEM <- LTEM %>% 
+      filter(Label=="INV")
+    clean_sp_list <- clean_sp_list %>% 
+      filter(Label=="INV" )   
+    
+    merge_df <- merge(LTEM, clean_sp_list[, c("Label" ,"IDSpecies", "Species")], 
+                      by= c("Label", "Species"), all.x = TRUE) %>% 
+      rename(correct_id= IDSpecies.y,
+             IDSpecies= IDSpecies.x)%>%
+      mutate(IDBefore= IDSpecies,
+             Status= ifelse(IDSpecies==correct_id,"Correct", "Modified_IDSp"),
+             IDSpecies= ifelse(IDSpecies==correct_id, IDSpecies, correct_id),
+             IDSpecies= ifelse(is.na(correct_id), IDBefore, IDSpecies)) 
+    
+    
+  }
+  else{
+    stop( print("Please specify fish or inv"))
+  }
+  
 }
 
-
-# Third Checkpoint: Correct spellings in the monitoring database ----------
-
-##We merge the validated scientific names in the PLoS, with our monitoring
-## database
-
-mg_df <- function(clean_df, clean_md){
-merge_df <- merge(clean_df, clean_md[, c("IDSpecies", "Validated")], 
-                  by= "IDSpecies", all.x = TRUE) %>% 
-  mutate(Status= ifelse(Species==Validated, "Correct", "Modified_sp"))
-
-
-##Manual Check: All "Pending" species must be verified, and should only
-## contain errors in spelling or in updates of the scientific name.
-
-#view(merge_df)
-
-
-#If no issues are displayed, proceed:
-
-names_fish <- merge_df %>% 
-  mutate(Species= Validated) %>% 
-  select(-c(Validated, Status))
-
-}
-
-# Replacing species in the monitoring database ----------------------------
-
-## Finally, we use a match to correct scientific names with the valid ones
-## from our PLoS in the complete monitoring database
-
-fish_ltem <- function(names_fish, ltem_fish){
-ltem_fish$Species[match(names_fish$ID, ltem_fish$ID)] <- names_fish$Species
-
+speciesnames <- function(LTEM_IDs, clean_sp_list, Label){
+  
+  LTEM <- LTEM_IDs
+  if(Label=="fish"){
+  
+    LTEM <- LTEM %>% 
+      filter(Label=="PEC")
+    
+    clean_sp_list <- clean_sp_list %>% 
+      filter(Label=="PEC")  
+    
+  merge_df <- merge(LTEM, clean_sp_list[, c("Label", "IDSpecies", "Species")], 
+                    by= c("Label", "IDSpecies"), all.x = TRUE) %>% 
+    rename(correct_sp= Species.y,
+           Species= Species.x)%>%
+    mutate(SpeciesBefore= Species,
+           Status= ifelse(Species==correct_sp, Status, "Modified_sp"),
+           Species= ifelse(Species==correct_sp, Species, correct_sp))
+  } else if(Label=="inv"){
+    
+    LTEM <- LTEM %>% 
+      filter(Label=="INV")
+    clean_sp_list <- clean_sp_list %>% 
+      filter(Label=="INV" )  
+    
+    merge_df <- merge(LTEM, clean_sp_list[, c("Label", "IDSpecies", "Species")], 
+                      by= c("Label", "IDSpecies"), all.x = TRUE) %>% 
+      rename(correct_sp= Species.y,
+             Species= Species.x)%>%
+      mutate(SpeciesBefore= Species,
+             Status= ifelse(Species==correct_sp, Status, "Modified_sp"),
+             Species= ifelse(Species==correct_sp, Species, correct_sp))    
+    
+  }else{
+    stop( print("Please specify fish or inv"))
+  }
+  
 }
 
 

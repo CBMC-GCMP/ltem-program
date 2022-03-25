@@ -6,7 +6,7 @@ library(readxl)
 # Load data ---------------------------------------------------------------
 
 #Ltem from fish scientific name correction:
-source("03-names/02_fish-scientific-names.R")
+source("03-names/01-fish_scientific_names.R")
 
 #Peripheral list of species (PLoS)
 inv_metadata <- read.csv ("data/lists/ltem_monitoring_species.csv")
