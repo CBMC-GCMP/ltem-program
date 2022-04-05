@@ -1,5 +1,6 @@
 library(tidyverse)
 library(readxl)
+library(stringr)
 
 
 
@@ -9,7 +10,7 @@ library(readxl)
 source("03-names/02_fish-scientific-names.R")
 
 #Peripheral list of species (PLoS)
-inv_metadata <- read.csv ("data/lists/ltem_monitoring_species.csv")
+inv_metadata <- read.csv ("data/inv_monitoring_species.csv")
 
 
 
@@ -116,7 +117,9 @@ rm(inv_resolved)
 
 ## Scientific names' status: Must be executed individually
 
-wormsID <- taxize:: get_wormsid(clean_md$Species)
+spp_inv <- data.frame( IDSpecies= clean_md$Species, Species= stringr::str_replace(clean_md$Species," ", "+") )
+
+wormsID <- taxize:: get_wormsid(spp_inv$Species)
 
 #Console: If manual input is required, always select the species entry
 #with an Accepted Status
@@ -125,7 +128,7 @@ wormsID <- taxize:: get_wormsid(clean_md$Species)
 ## All the other species which are not valid, require manual correction.
 ## You can do so by replacing the old scientific name string, with a new one:
 
-clean_md <- clean_md %>%
+clean_md <- spp_inv %>%
 mutate(Species = str_replace_all(Species, "Hyotissa solida",
                                  "Hyotissa hyotis")) %>% 
   mutate(Species = str_replace_all(Species,
@@ -163,6 +166,7 @@ library(worms)
 # First Step: We change the format of the WoRMS IDs generated in previous section
 wormsID <- data.frame(wormsID)
   
+
 
 # Second Step
 wormsID = as.numeric(wormsID$ids)
