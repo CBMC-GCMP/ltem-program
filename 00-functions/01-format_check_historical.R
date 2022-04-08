@@ -80,4 +80,5 @@ flag_trnsct <- function(COMPARED)  {
   ) %>% 
   group_by(Region) %>% 
   filter(Flag != "CORRECT")
+  write_rds(m_transects,"data/missing_transects.RDS") 
 }

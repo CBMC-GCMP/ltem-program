@@ -1,3 +1,5 @@
+source("00-functions/00-flags.R")
+
 
 sizeid <- function(LTEM,IDSize){
   ltem <- merge(LTEM, IDSize, by= c("Label","IDSize"), all.x= T) %>% 
@@ -30,14 +32,6 @@ reefsname <- function(LTEM,IDReef){
 
 
 
-flags <- function(LTEM_corrected){
-  IDs <- c("IDReef", "IDSize")
-  correct <- c("correct_size", "correct_reef", "correct_id")
-  Before <- c("IDBefore", "ReefBefore")
-  flags <- LTEM_corrected %>%
-    filter(str_detect(Status, "Modified_" )) %>% 
-    select(Label, Year, Month, Day, Region, Depth, Transect, Observer, any_of(IDs), any_of(Before), any_of(correct), Status) 
-}
 
 
 unique_trnsct <- function(LTEM){
@@ -79,4 +73,5 @@ flag_trnsct <- function(COMPARED)  {
   ) %>% 
   group_by(Region) %>% 
   filter(Flag != "CORRECT")
+  write_rds(COMPARED,"data/missing_transects.RDS") 
 }
