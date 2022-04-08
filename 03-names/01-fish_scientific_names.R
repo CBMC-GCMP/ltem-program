@@ -8,7 +8,7 @@ library(tidyverse)
 
 ## Load custom functions
 
-source("00-functions/03-01-fish_scientific_names.R")
+source("00-functions/scientific_names.R")
 
 #Monitoring Data
 ltem<- read_xlsx ("data/drive/ltem_database_07122021.xlsx", 
@@ -31,7 +31,7 @@ clean_md <-clean_spp (species_list, "fish")
 # Connect to WoRMS and fishbase API using complentary functions
 # Function resolve_names() searches for species scientific names correct spelling
 
-names_resolved <- resolve_names(clean_md)
+names_resolved <- resolve_names(clean_md, "fish")
 
 
 
@@ -41,7 +41,7 @@ names_resolved <- resolve_names(clean_md)
 
 # Function used: clean_validation()
 
-fish_validated <- clean_validation(clean_md, names_resolved, species_list)
+fish_validated <- clean_validation(clean_md, names_resolved, species_list, "fish")
 
 
 
@@ -49,14 +49,14 @@ fish_validated <- clean_validation(clean_md, names_resolved, species_list)
 # LTEM database correction ------------------------------------------------
 
 # Correction of possible errors in IDSpecies
-ltem <- speciesid(ltem_fish, fish_validated, "fish")
+ltem <- speciesid(ltem, fish_validated, "fish")
 
 # Correction of species names mispellings
 ltem <- speciesnames(ltem, fish_validated, "fish")
 
 
 # Generate report for modified IDSpecies or Species (Optional)
-test <-   flags(ltem)
+# test <-   flags(ltem)
 
 
 
