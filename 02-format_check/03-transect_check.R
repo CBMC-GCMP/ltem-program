@@ -5,7 +5,7 @@ library(readxl)
 
 # Load data ---------------------------------------------------------------
 
-source("01-format_check/02-IDReef_check.R")
+source("02-format_check/02-IDReef_check.R")
 
 # ltem <- read_sheet("https://docs.google.com/spreadsheets/d/1vVHFQEhvtvmhh5u6GghbUBXvYYR-q-Jc7gnQTF7Zias/edit#gid=2040316618")
 

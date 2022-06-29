@@ -1,4 +1,4 @@
-source("00-functions/00-flags.R")
+
 
 
 sizeid <- function(LTEM,IDSize){
@@ -12,11 +12,19 @@ sizeid <- function(LTEM,IDSize){
 
 
 reefsid <- function(LTEM,IDReef){
+
+  LTEM <- LTEM %>% 
+    mutate(Reef= str_replace(Reef, " ", "_"))
+  
   ltem <- merge(LTEM, IDReef [, c("IDReef", "Reef", "Habitat")], by= c("Reef", "Habitat"), all.x= T) %>% 
     rename(correct_id= IDReef.y,
            IDReef= IDReef.x)%>% 
     mutate(IDBefore= IDReef,
-           Status= ifelse(IDReef==correct_id, "Correct", "Modified_ID"),
+           
+           Status= case_when(IDReef==correct_id~"Correct",
+                             is.na(IDReef)~"Modified_ID",
+                             TRUE~"Modified_ID"),
+           IDReef=ifelse(is.na(IDReef), correct_id, IDReef),
            IDReef= ifelse(IDReef== correct_id, IDReef, correct_id),
            IDReef= ifelse( is.na(correct_id), IDBefore, IDReef))
 }

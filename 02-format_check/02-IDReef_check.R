@@ -5,7 +5,7 @@ library(tidyverse)
 
 # Load data ---------------------------------------------------------------
 
-source("01-format_check/01-size_check.R")
+source("02-format_check/01-size_check.R")
 
 ## Load peripherical list of Reefs
 reefs <-  read.csv("data/lists/ltem_monitoring_reefs.csv")

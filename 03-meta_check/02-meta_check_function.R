@@ -68,7 +68,7 @@ ltem_database <-
 # Export data -------------------------------------------------------------
 
 ## Corrected LTEM database
-writexl::write_xlsx(ltem_database, "data/ltem_database_07122021.xlsx")
+writexl::write_xlsx(ltem, "data/clean/2022/ltem_SB_27072022.xlsx")
 
 
 
