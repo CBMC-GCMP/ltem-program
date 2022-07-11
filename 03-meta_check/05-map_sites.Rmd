@@ -1,0 +1,113 @@
+---
+title: "Map"
+runtime: shiny
+output: 
+        flexdashboard::flex_dashboard:
+        source_code: embed
+        theme: united
+
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(leaflet)
+library(mapview)
+library(rgdal)
+library(sf)
+library(tidyverse)
+library(ggthemes)
+library(viridis)
+library(rnaturalearth)
+library(hrbrthemes)
+library(patchwork)
+library(RColorBrewer)
+library(lwgeom)
+library(units)
+library(shiny)
+
+
+##
+ltem <- readRDS("")
+
+
+sites_year <- ltem %>%
+  group_by(Year,IDReef, Reef, Depth) %>%
+  summarise(Transects= length(unique(Transect)),
+            Species_n=sum(Quantity),
+            Latitude=unique(Latitude),
+            Longitude=unique(Longitude)
+            
+  ) %>%
+  group_by(IDReef, Reef,Depth) %>% 
+  summarise(
+            Years= list(unique(Year)),
+            Total_years= length(unique(Year)),
+            Transects=Transects,
+            Species_n=Species_n,
+            Latitude=Latitude,
+            Longitude=Longitude)
+sites_year <- st_as_sf(sites_year, coords = c("Longitude", "Latitude"), crs = 4326)
+```
+
+
+```{r}
+
+sites_year$labels1 <- paste0(
+  "<h3 style= 'background-color:#87683a; color: white; text-align: center; font-size: 140%; font-family:Times New Roman'> Sitio </h3>", 
+                     "<b style= 'color:#263270'> Depth: </b> ", sites_year$Depth, "<br/> ",
+                     "<b style= 'color:#263270'> Years: </b> ", sites_year$Total_years, "<br/> ",
+   "<b style= 'color:#263270'> Total Years: </b> ", sites_year$Years, "<br/> ",
+                     "<b style= 'color:#263270'> Transects: </b> ", sites_year$Transects, "<br/> ",
+                     "<b style= 'color:#263270'> Species: </b> ", sites_year$Species_n, "<br/> ") %>%
+        lapply(htmltools::HTML)
+
+
+leaflet(sites_year) %>%
+        addProviderTiles(providers$Esri.WorldImagery, group = "Satélite") %>%
+        addProviderTiles(providers$Esri.WorldTopoMap, group = "Mapa") %>%
+        addProviderTiles(providers$Esri.OceanBasemap, group = "Océano") %>%
+
+        setView(lat = 23.8497874,
+                lng = -109.3884183,
+                zoom = 30) %>%
+        addMarkers(
+                popup = ~ labels1,
+                group = "Sitios"
+                
+        )  %>% 
+        # Layers control
+        addLayersControl(
+                baseGroups = c("Satélite", "Mapa", "Ocean"),
+                overlayGroups = c("Sitios"),
+                options = layersControlOptions(collapsed = TRUE)
+        ) %>%
+
+
+    addMiniMap(
+  position = "bottomright",
+  width = 140,
+  height = 140,
+  collapsedWidth = 19,
+  collapsedHeight = 19,
+  zoomLevelOffset = -5,
+  zoomLevelFixed = FALSE,
+  centerFixed = FALSE,
+  zoomAnimation = TRUE,
+  toggleDisplay = TRUE,
+  autoToggleDisplay = FALSE,
+  minimized = FALSE,
+  aimingRectOptions = list(color = "#ff7800", weight = 1, clickable = FALSE),
+  shadowRectOptions = list(color = "#000000", weight = 1, clickable = FALSE, opacity =
+    0, fillOpacity = 0),
+  strings = list(hideText = "Hide MiniMap", showText = "Show MiniMap"),
+  tiles = NULL,
+  mapOptions = list()
+)
+
+
+
+
+
+
+
+
